@@ -449,7 +449,7 @@ input[type=file]{display:none}
 /* ---------- server bridge (fetch → Apps Script JSON API; mock for local test) ---------- */
 var API = (window.RECEIPT_API_URL || '').trim();
 var FN_MAP = { apiSignIn:'signIn', apiUpload:'upload', apiUpdateMeta:'updateMeta',
-               apiGetIntakeMeta:'getIntakeMeta', apiAddCompany:'addCompany',
+               apiGetIntakeMeta:'getIntakeMeta', apiListMine:'listMine', apiAddCompany:'addCompany',
                apiRemoveCompany:'removeCompany', whoami:'whoami' };
 function rpc(fn, token){
   var args = Array.prototype.slice.call(arguments,2);
@@ -520,9 +520,17 @@ var PDF_THUMB='data:image/svg+xml;utf8,'+encodeURIComponent(
   '<g fill="none" stroke="#8A7F71" stroke-width="2" stroke-linecap="round">'+
   '<rect x="17" y="16" width="30" height="40" rx="3"/><path d="M24 28h16M24 36h16M24 44h10"/></g>'+
   '<text x="32" y="70" font-family="monospace" font-size="10" fill="#8A7F71" text-anchor="middle">PDF</text></svg>');
+/* Placeholder for a receipt that lives in Drive but not on this device (no local photo). */
+var REMOTE_THUMB='data:image/svg+xml;utf8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">'+
+  '<rect width="64" height="80" fill="#EDEAE5"/>'+
+  '<g fill="none" stroke="#B9B2A7" stroke-width="2" stroke-linecap="round">'+
+  '<rect x="16" y="14" width="32" height="44" rx="3"/><path d="M23 26h18M23 34h18M23 42h12"/></g>'+
+  '<circle cx="46" cy="60" r="9" fill="#E4EADF"/><path d="M42.5 60l2.5 2.5 4.5-5" stroke="#4B6146" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 function blobUrl(rec){
   if (rec && rec.mime==='application/pdf') return PDF_THUMB;
-  if (!S.urls[rec.id] && rec.blob) S.urls[rec.id] = URL.createObjectURL(rec.blob);
+  if (rec && rec.blob){ if (!S.urls[rec.id]) S.urls[rec.id]=URL.createObjectURL(rec.blob); return S.urls[rec.id]; }
+  if (rec && (rec.remote || rec.sync==='synced')) return REMOTE_THUMB;   // in Drive, not on this phone
   return S.urls[rec.id];
 }
 function tagLabel(t){ return Array.isArray(t) ? t.join(' · ') : t; }
@@ -1133,23 +1141,47 @@ function enterApp(user, tok){
   localStorage.setItem('token',tok);
   localStorage.setItem('user',JSON.stringify(user));
   applyTheme(); show('home');
-  rpc('apiGetIntakeMeta',tok).then(function(meta){
+  loadServerReceipts();
+  flushQueue();
+  setInterval(flushQueue, 30000);
+}
+
+/**
+ * Pull this person's receipts from Drive so every device shows the full set — the whole
+ * point of email sign-in. A receipt captured on THIS device keeps its local photo; one that
+ * came from another device arrives with no blob and shows a placeholder thumbnail plus its
+ * date, tag, status and any "not a receipt" flag. Also carries the intake's suggestions and
+ * skip/reject markers, so this replaces the old apiGetIntakeMeta merge.
+ */
+function loadServerReceipts(){
+  if (!S.token) return;
+  rpc('apiListMine',S.token).then(function(list){
+    if (!Array.isArray(list)) return;
     dbAll().then(function(all){
+      var byId={}; all.forEach(function(r){ byId[r.id]=r; });
       var chain=Promise.resolve();
-      all.forEach(function(rec){
-        var m=meta[rec.id]; if (!m) return;
+      list.forEach(function(s){
+        var rec=byId[s.id];
+        if (!rec){
+          // receipt from another device / not on this phone → metadata-only record, no blob
+          rec={ id:s.id, capturedAt:s.capturedAt||Date.now(), blob:null, mime:s.mime||'image/jpeg',
+                source:s.source||'camera', tags:s.tags||null, note:s.note||'', suggestion:s.suggestion||null,
+                blurry:!!s.blurry, sync:'synced', skipped:!!s.skipped,
+                notReceipt:!!s.notReceipt, rejectReason:s.reason||'', remote:true };
+          chain=chain.then(function(){ return dbPut(rec); });
+          return;
+        }
         var changed=false;
-        if (m.suggestion && rec.suggestion!==m.suggestion){ rec.suggestion=m.suggestion; changed=true; }
-        if (m.skipped && !rec.skipped){ rec.skipped=true; changed=true; }
-        if (m.notReceipt && !rec.notReceipt){ rec.notReceipt=true; rec.rejectReason=m.reason||''; changed=true; }
-        if (m.notReceipt===false && rec.notReceipt){ rec.notReceipt=false; changed=true; }  // intake un-flagged it
+        if (s.suggestion && rec.suggestion!==s.suggestion){ rec.suggestion=s.suggestion; changed=true; }
+        if (s.skipped && !rec.skipped){ rec.skipped=true; changed=true; }
+        if (s.notReceipt && !rec.notReceipt){ rec.notReceipt=true; rec.rejectReason=s.reason||''; changed=true; }
+        if (!s.notReceipt && rec.notReceipt){ rec.notReceipt=false; changed=true; }
+        if (s.tags && JSON.stringify(s.tags)!==JSON.stringify(rec.tags||null)){ rec.tags=s.tags; changed=true; }
         if (changed) chain=chain.then(function(){ return dbPut(rec); });
       });
       chain.then(refreshCurrent);
     });
-  }).catch(function(){});
-  flushQueue();
-  setInterval(flushQueue, 30000);
+  }).catch(function(){ /* offline or old backend without listMine — local list still works */ });
 }
 (function(){
   var v=localStorage.getItem('textScale'); if (v) applyScale(v);
