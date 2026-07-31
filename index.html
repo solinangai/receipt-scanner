@@ -47,6 +47,10 @@ textarea{font:inherit;width:100%;resize:none}
   display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 6px 16px rgba(59,39,22,.22)}
 .btn-google .gmark{width:18px;height:18px;border-radius:50%;background:#FFFDF6;display:inline-block}
 .btn-link{min-height:54px;border-radius:16px;background:#FFFDF6;color:#6B4826;font-size:16px;font-weight:500}
+.in-email{min-height:58px;border-radius:16px;background:#FFFDF6;color:#3B2716;font-size:17px;
+  padding:0 16px;border:1.5px solid rgba(59,39,22,.18);width:100%}
+.in-email::placeholder{color:rgba(107,72,38,.5)}
+.in-email:focus{outline:none;border-color:#3B2716}
 .card-noallow{background:#FFFDF6;border:1px solid rgba(59,39,22,.18);border-radius:16px;padding:14px 16px;margin-bottom:4px}
 .card-noallow b{font-size:15px;font-weight:600;color:#3B2716;display:block}
 .card-noallow span{font-size:14px;line-height:1.5;color:#6B4826}
@@ -96,6 +100,22 @@ textarea{font:inherit;width:100%;resize:none}
   border:4px solid var(--card)}
 .theme-member .tab-cam .fab{border-color:#FFFAEE}
 
+/* ============ upload ============ */
+.up-body{flex:1;padding:6px 20px 40px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+.up-drop{width:100%;min-height:190px;border-radius:22px;background:var(--primary);color:var(--onprimary);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  box-shadow:0 10px 26px rgba(23,22,26,.14)}
+.theme-member .up-drop{box-shadow:0 10px 26px rgba(59,39,22,.18)}
+.up-drop:active{transform:scale(.985);opacity:.94}
+.up-glyph{width:58px;height:58px;border-radius:50%;background:var(--bg);color:var(--primary);
+  display:flex;align-items:center;justify-content:center}
+.up-main{font-size:19px;font-weight:500}
+.up-hint{font-size:14px;opacity:.75;margin-top:-4px}
+.up-note{font-size:14px;line-height:1.5;color:var(--body)}
+.up-share{color:var(--meta)}
+.thumb.pdf{display:flex;align-items:center;justify-content:center;background:#EDEAE5;color:#8A7F71;font-size:10px;
+  font-family:ui-monospace,monospace;letter-spacing:.06em}
+
 /* ============ camera ============ */
 #scr-camera{background:radial-gradient(120% 90% at 50% 30%,#26262B 0%,#111114 60%,#0E0E11 100%);color:#F7F3EC}
 .cam-frame{flex:1;padding:106px 34px 8px;display:flex;align-items:center;justify-content:center;position:relative}
@@ -117,7 +137,11 @@ textarea{font:inherit;width:100%;resize:none}
 .btn-home{width:56px;height:56px;color:rgba(247,243,236,.6);font-size:13.5px}
 .shutter{width:92px;height:92px;border-radius:50%;background:#F7F3EC;box-shadow:0 0 0 4px rgba(247,243,236,.22)}
 .shutter:active{transform:scale(.94);box-shadow:0 0 0 10px rgba(247,243,236,.22)}
-.last-thumb{width:56px;height:56px;border-radius:12px;border:1.5px solid rgba(247,243,236,.3);background-size:cover;background-position:center}
+.last-thumb{width:56px;height:56px;border-radius:12px;border:1.5px solid rgba(247,243,236,.3);
+  background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;
+  color:rgba(247,243,236,.92)}
+.last-thumb svg{filter:drop-shadow(0 1px 4px rgba(0,0,0,.75))}
+.last-thumb:active{transform:scale(.94)}
 .review-ui{display:none;flex-direction:column;gap:12px}
 #scr-camera.review .review-ui{display:flex}
 #scr-camera.review .live-row{display:none}
@@ -233,11 +257,12 @@ input[type=file]{display:none}
   <div class="sub">Snap the receipt. That's the whole job.</div>
   <div class="stack">
     <div class="card-noallow" id="noallow" style="display:none">
-      <b>This link isn't set up yet</b>
-      <span>Ask the owner to send you your personal link, then open it again.</span>
+      <b>This email isn't set up yet</b>
+      <span>Ask the owner to add it, then sign in again.</span>
     </div>
-    <button class="btn-google" id="btn-google"><span class="gmark"></span>Continue with Google</button>
-    <button class="btn-link" id="btn-maillink">Email me a link</button>
+    <input class="in-email" id="in-email" type="email" inputmode="email" autocomplete="email"
+           autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com">
+    <button class="btn-google" id="btn-signin">Continue</button>
   </div>
 </div>
 
@@ -282,7 +307,12 @@ input[type=file]{display:none}
     <div class="live-row">
       <button class="btn-home" id="btn-cam-home">Home</button>
       <button class="shutter" id="btn-shutter" aria-label="Take photo"></button>
-      <button class="last-thumb" id="btn-last"></button>
+      <button class="last-thumb" id="btn-last" aria-label="Choose from album">
+        <svg width="24" height="20" viewBox="0 0 30 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+          <rect x="1.5" y="1.5" width="27" height="21" rx="4"/><circle cx="9" cy="8.5" r="2.4"/>
+          <path d="M3 19l7.5-7 5.5 5 4-3.5 6.5 5.5"/>
+        </svg>
+      </button>
     </div>
     <div class="review-ui">
       <div class="chiplbl" id="rev-chiplbl">tag this one? optional</div>
@@ -361,6 +391,31 @@ input[type=file]{display:none}
   <div class="tabbar" data-tabbar></div>
 </div>
 
+<!-- UPLOAD -->
+<div class="screen" id="scr-upload">
+  <div class="hdr"><div><h1>Upload</h1><div class="sub">Photos from your album, or a PDF invoice.</div></div></div>
+  <div class="up-body">
+    <button class="up-drop" id="btn-pick">
+      <span class="up-glyph">
+        <svg width="30" height="24" viewBox="0 0 30 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round">
+          <rect x="1.5" y="1.5" width="27" height="21" rx="4"/><circle cx="9" cy="8.5" r="2.4"/>
+          <path d="M3 19l7.5-7 5.5 5 4-3.5 6.5 5.5"/>
+        </svg>
+      </span>
+      <span class="up-main">Choose photos or PDFs</span>
+      <span class="up-hint">Pick as many as you like</span>
+    </button>
+    <div class="up-note">
+      Everything you pick is saved on this phone straight away, then uploaded on its own —
+      the same as a photo you take here.
+    </div>
+    <div class="up-note up-share">
+      Got it in WhatsApp? Save the photo or file to your phone first, then pick it here.
+    </div>
+  </div>
+  <div class="tabbar" data-tabbar></div>
+</div>
+
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="blur-sheet">
   <h2>Too blurry</h2>
@@ -371,12 +426,14 @@ input[type=file]{display:none}
 <div class="flash" id="flash"></div>
 <div class="toast" id="toast"></div>
 <input type="file" id="file-cam" accept="image/*" capture="environment">
+<input type="file" id="file-pick" accept="image/*,application/pdf,.pdf" multiple>
 
 <script>
 /* ---------- server bridge (fetch → Apps Script JSON API; mock for local test) ---------- */
 var API = (window.RECEIPT_API_URL || '').trim();
-var FN_MAP = { apiUpload:'upload', apiUpdateMeta:'updateMeta', apiGetIntakeMeta:'getIntakeMeta',
-               apiAddCompany:'addCompany', apiRemoveCompany:'removeCompany', whoami:'whoami' };
+var FN_MAP = { apiSignIn:'signIn', apiUpload:'upload', apiUpdateMeta:'updateMeta',
+               apiGetIntakeMeta:'getIntakeMeta', apiAddCompany:'addCompany',
+               apiRemoveCompany:'removeCompany', whoami:'whoami' };
 function rpc(fn, token){
   var args = Array.prototype.slice.call(arguments,2);
   if (window.__mockRpc) return window.__mockRpc(fn,[token].concat(args));
@@ -439,7 +496,15 @@ function fmtTs(ms){
          d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
 }
 function uuid(){ return 'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); }
+/* A PDF has no picture to show, so every thumbnail slot gets this document mark. */
+var PDF_THUMB='data:image/svg+xml;utf8,'+encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="80" viewBox="0 0 64 80">'+
+  '<rect width="64" height="80" fill="#EDEAE5"/>'+
+  '<g fill="none" stroke="#8A7F71" stroke-width="2" stroke-linecap="round">'+
+  '<rect x="17" y="16" width="30" height="40" rx="3"/><path d="M24 28h16M24 36h16M24 44h10"/></g>'+
+  '<text x="32" y="70" font-family="monospace" font-size="10" fill="#8A7F71" text-anchor="middle">PDF</text></svg>');
 function blobUrl(rec){
+  if (rec && rec.mime==='application/pdf') return PDF_THUMB;
   if (!S.urls[rec.id] && rec.blob) S.urls[rec.id] = URL.createObjectURL(rec.blob);
   return S.urls[rec.id];
 }
@@ -463,11 +528,12 @@ var ICONS = {
   home:'<svg class="ico" viewBox="0 0 20 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M2 8l8-6 8 6"/><path d="M4 8v7h12V8"/></svg>',
   receipts:'<svg class="ico" viewBox="0 0 20 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="1.5" width="12" height="14" rx="2"/><path d="M7 6h6M7 10h6"/></svg>',
   settings:'<svg class="ico" viewBox="0 0 20 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 5h16M2 12h16"/><circle cx="7" cy="5" r="2" fill="var(--card)"/><circle cx="13" cy="12" r="2" fill="var(--card)"/></svg>',
+  upload:'<svg width="20" height="17" viewBox="0 0 20 17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12V2"/><path d="M6 5.5L10 1.5l4 4"/><path d="M2 11v3.5a1 1 0 001 1h14a1 1 0 001-1V11"/></svg>',
   cam:'<svg width="27" height="19" viewBox="0 0 26 19" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"><rect x="1.5" y="4" width="23" height="13.5" rx="3"/><circle cx="13" cy="10.5" r="4"/><path d="M9 4l1.2-2.5h5.6L17 4"/></svg>'
 };
 function renderTabbar(el){
   el.innerHTML='';
-  [['home','Home'],['receipts','Receipts'],['CAM','Camera'],['settings','Settings']].forEach(function(t){
+  [['home','Home'],['receipts','Receipts'],['CAM','Camera'],['upload','Upload'],['settings','Settings']].forEach(function(t){
     var b=document.createElement('button');
     if (t[0]==='CAM'){
       b.className='tab tab-cam';
@@ -552,7 +618,9 @@ $('btn-shutter').onclick=function(){
   $('file-cam').click();
 };
 $('btn-capture-home').onclick=openCamera;
-$('btn-last').onclick=function(){ show('receipts'); };
+// Corner button on the camera = open the album/file picker (multi-select).
+$('btn-last').onclick=function(){ pickFiles('album'); };
+$('btn-pick').onclick=function(){ pickFiles('file'); };
 
 $('file-cam').addEventListener('change', function(){
   var f = this.files && this.files[0];
@@ -562,11 +630,66 @@ $('file-cam').addEventListener('change', function(){
   processCapture(f);
 });
 
+/* ---------- importing from album / files / share ---------- */
+var pickSource='file';
+function pickFiles(source){ pickSource=source; $('file-pick').click(); }
+$('file-pick').addEventListener('change', function(){
+  var files=Array.prototype.slice.call(this.files||[]);
+  this.value='';
+  importFiles(files, pickSource);
+});
+
+/**
+ * Import already-existing photos/PDFs. Unlike a live capture these can't be
+ * re-shot, so a soft image is flagged for desktop review rather than
+ * interrupting with the retake sheet.
+ */
+function importFiles(files, source){
+  files=(files||[]).filter(function(f){
+    return f && (/^image\//.test(f.type) || f.type==='application/pdf' || /\.pdf$/i.test(f.name||''));
+  });
+  if (!files.length){ toast('Nothing to add'); return Promise.resolve(0); }
+
+  var added=0;
+  return files.reduce(function(chain,f){
+    return chain.then(function(){
+      var isPdf = f.type==='application/pdf' || /\.pdf$/i.test(f.name||'');
+      var prep = isPdf ? Promise.resolve({blob:f, sharpness:999}) : compress(f,1600,.82);
+      return prep.then(function(res){
+        var rec={ id:uuid(), capturedAt:(f.lastModified||Date.now()), blob:res.blob,
+                  mime:isPdf?'application/pdf':'image/jpeg', source:source,
+                  filename:f.name||'', tags:null, note:'', suggestion:null,
+                  blurry:!isPdf && res.sharpness<60, sync:'queued', skipped:false };
+        return dbPut(rec).then(function(){ added++; });
+      }).catch(function(){ /* skip unreadable file, keep the rest */ });
+    });
+  }, Promise.resolve()).then(function(){
+    if (!added){ toast("Couldn't read those files"); return 0; }
+    toast(added===1?'1 receipt added':added+' receipts added');
+    show('receipts');
+    flushQueue();
+    return added;
+  });
+}
+
+/* Android share-target: files handed over by the OS land in a cache for us. */
+function handleSharedFiles(){
+  if (location.search.indexOf('shared=1')===-1 || !window.caches) return;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  caches.open('rs-share').then(function(c){
+    return c.match('pending').then(function(res){
+      if (!res) return;
+      return c.delete('pending').then(function(){ return res.formData(); })
+        .then(function(fd){ importFiles(fd.getAll('files'),'share'); });
+    });
+  }).catch(function(){});
+}
+
 function processCapture(file){
   compress(file, 1600, .82).then(function(res){
     var id = uuid();
-    var rec = { id:id, capturedAt:Date.now(), blob:res.blob, tags:null, note:'',
-                suggestion:null, blurry:false, sync:'queued', skipped:false };
+    var rec = { id:id, capturedAt:Date.now(), blob:res.blob, mime:'image/jpeg', source:'camera',
+                tags:null, note:'', suggestion:null, blurry:false, sync:'queued', skipped:false };
     // Photo committed BEFORE any UI transition — the non-negotiable rule.
     return dbPut(rec).then(function(){
       S.pendingId = id; S.batch.push(id);
@@ -699,6 +822,7 @@ function flushQueue(){
       chain=chain.then(function(){
         return blobToB64(rec.blob).then(function(b64){
           return rpc('apiUpload',S.token,{receiptId:rec.id,b64:b64,capturedAt:rec.capturedAt,
+            mime:rec.mime||'image/jpeg',source:rec.source||'camera',
             tags:rec.tags,note:rec.note,blurry:rec.blurry});
         }).then(function(){
           rec.sync='synced';
@@ -925,7 +1049,11 @@ document.querySelectorAll('.aa-row button').forEach(function(b){
 });
 $('btn-signout').onclick=function(){
   localStorage.removeItem('token'); localStorage.removeItem('user');
-  S.user=null; S.token=null; show('signin');
+  S.user=null; S.token=null;
+  $('in-email').value=localStorage.getItem('email')||'';
+  $('noallow').style.display='none';
+  var b=$('btn-signin'); b.textContent='Continue'; b.disabled=false;
+  show('signin');
 };
 $('lnk-settings').onclick=function(){ show('settings'); };
 
@@ -937,12 +1065,24 @@ function updateLastThumb(){
     $('btn-last').style.backgroundImage = all[0]?'url('+(blobUrl(all[0])||'')+')':'';
   });
 }
-$('btn-google').onclick=function(){
-  $('noallow').style.display='block';
-};
-$('btn-maillink').onclick=function(){
-  location.href='mailto:solinangai@gmail.com?subject=Receipt%20Scanner%20link&body=Please%20send%20me%20my%20personal%20Receipt%20Scanner%20link.';
-};
+function doSignIn(){
+  var email=$('in-email').value.trim();
+  if (!email){ $('in-email').focus(); return; }
+  if (!navigator.onLine){ toast('Need a signal to sign in'); return; }
+  $('noallow').style.display='none';
+  var btn=$('btn-signin'), was=btn.textContent;
+  btn.textContent='Signing in…'; btn.disabled=true;
+  rpc('apiSignIn',null,email).then(function(r){
+    localStorage.setItem('email',email);
+    enterApp(r.user, r.token);
+  }).catch(function(err){
+    btn.textContent=was; btn.disabled=false;
+    if (String(err&&err.message||err).indexOf('not-allowed')>-1) $('noallow').style.display='block';
+    else toast("Couldn't reach the server");
+  });
+}
+$('btn-signin').onclick=doSignIn;
+$('in-email').addEventListener('keydown',function(e){ if (e.key==='Enter') doSignIn(); });
 
 /* ---------- boot ---------- */
 function enterApp(user, tok){
@@ -980,15 +1120,17 @@ function enterApp(user, tok){
     try{ history.replaceState(null,'',location.pathname); }catch(e){}
   }
   var cached=null; try{ cached=JSON.parse(localStorage.getItem('user')); }catch(e){}
+  $('in-email').value = localStorage.getItem('email') || '';
   if (!tok){ show('signin'); return; }
   if (!navigator.onLine && cached){ enterApp(cached,tok); return; }   // offline open: cached identity
   rpc('whoami',tok).then(function(user){ enterApp(user,tok); })
     .catch(function(err){
       var denied = String(err&&err.message||err).indexOf('not-allowed')>-1;
       if (cached && !denied){ enterApp(cached,tok); return; }         // network hiccup, not a revocation
-      localStorage.removeItem('user');
-      show('signin'); $('noallow').style.display='block';
+      localStorage.removeItem('user'); localStorage.removeItem('token');
+      show('signin'); if (denied) $('noallow').style.display='block';
     });
+  handleSharedFiles();
 })();
 </script>
 </body>
