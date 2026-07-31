@@ -195,6 +195,15 @@ textarea{font:inherit;width:100%;resize:none}
 .rrow .ts{font-family:ui-monospace,monospace;font-size:12.5px}
 .rrow .blur{font-family:ui-monospace,monospace;font-size:10px;color:#8E3B22;letter-spacing:.08em}
 .rrow .tagline{font-size:12.5px;color:#4B6146}
+.notrcpt{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:#CE3B2E;background:#FBE9E7;border-radius:999px;padding:2px 8px}
+.det-reject{background:#FBE9E7;border:1px solid rgba(206,59,46,.28);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.det-reject b{display:block;font-size:15px;font-weight:600;color:#CE3B2E}
+.det-reject span{display:block;font-size:14px;line-height:1.5;color:#5E5B56;margin-top:2px}
+.det-reject .rj-btns{display:flex;gap:9px;margin-top:12px}
+.det-reject button{flex:1;min-height:50px;border-radius:12px;font-size:15px;font-weight:500}
+.det-reject .rj-remove{background:#221E1A;color:#F7F3EC}
+.det-reject .rj-keep{background:#FFFDF8;border:1.5px solid rgba(34,30,26,.2);color:#221E1A}
 .ckbox{width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none}
 .ckbox i{width:28px;height:28px;border-radius:9px;border:1.5px solid rgba(34,30,26,.3);display:flex;align-items:center;justify-content:center;font-style:normal;color:#F7F3EC}
 .rrow.selected .ckbox i{background:#221E1A;border-color:#221E1A}
@@ -353,6 +362,14 @@ input[type=file]{display:none}
     <button class="del" id="det-del">Delete</button>
   </div>
   <div class="det-body">
+    <div class="det-reject" id="det-reject" style="display:none">
+      <b>This doesn't look like a receipt</b>
+      <span id="det-reject-reason"></span>
+      <div class="rj-btns">
+        <button class="rj-remove" id="det-reject-remove">Remove from phone</button>
+        <button class="rj-keep" id="det-reject-keep">It is a receipt</button>
+      </div>
+    </div>
     <div class="det-photo" id="det-photo"></div>
     <div class="det-meta">
       <span class="ts" id="det-ts"></span>
@@ -881,7 +898,8 @@ function renderHome(){
 }
 function homeRow(rec){
   var b=document.createElement('button'); b.className='row';
-  var hint = rec.note || (rec.tags?'Tagged '+tagLabel(rec.tags)
+  var hint = rec.notReceipt ? '<span class="notrcpt">Not a receipt</span>'
+    : rec.note || (rec.tags?'Tagged '+tagLabel(rec.tags)
     : rec.suggestion?'Suggested: '+rec.suggestion : 'Untagged');
   b.innerHTML='<span class="thumb" style="background-image:url('+(blobUrl(rec)||'')+')"></span>'+
     '<span class="col"><div class="ts">'+fmtTs(rec.capturedAt)+'</div>'+
@@ -908,7 +926,8 @@ function renderReceipts(){
     list.forEach(function(rec){
       var b=document.createElement('button');
       b.className='rrow'+(rec.tags?' tagged':'')+(S.selection.indexOf(rec.id)>-1?' selected':'');
-      var hint=rec.note||(rec.tags?'Tagged '+tagLabel(rec.tags):rec.suggestion?'Suggested: '+rec.suggestion:'Untagged');
+      var hint=rec.notReceipt?'<span class="notrcpt">Not a receipt</span>'
+        :rec.note||(rec.tags?'Tagged '+tagLabel(rec.tags):rec.suggestion?'Suggested: '+rec.suggestion:'Untagged');
       b.innerHTML=(S.selectMode?'<span class="ckbox"><i>'+(S.selection.indexOf(rec.id)>-1?'✓':'')+'</i></span>':'')+
         '<span class="thumb" style="background-image:url('+(blobUrl(rec)||'')+')"></span>'+
         '<span class="col"><div class="ts">'+fmtTs(rec.capturedAt)+'</div>'+
@@ -986,8 +1005,32 @@ function openDetail(id){
     S.detTags=rec.tags;
     drawDetChips(rec);
     updateDetConfirm(rec);
+    // "Not a receipt" banner: the sorting run set this aside; the person decides.
+    var rj=$('det-reject');
+    if (rec.notReceipt){
+      rj.style.display='block';
+      $('det-reject-reason').textContent = rec.rejectReason || 'It looks like a screenshot or photo of something else.';
+    } else { rj.style.display='none'; }
   });
 }
+$('det-reject-remove').onclick=function(){
+  dbGet(detId).then(function(rec){
+    rec.skipped=true;                 // local removal + skip marker; the Drive copy is kept in _Not receipts
+    dbPut(rec).then(function(){
+      if (S.token) rpc('apiUpdateMeta',S.token,rec.id,{skipped:true}).catch(function(){});
+      show('receipts'); toast('Removed on this phone');
+    });
+  });
+};
+$('det-reject-keep').onclick=function(){
+  dbGet(detId).then(function(rec){
+    rec.notReceipt=false;             // clear locally + tell the intake to treat it as a real receipt
+    dbPut(rec).then(function(){
+      if (S.token) rpc('apiUpdateMeta',S.token,rec.id,{keepAsReceipt:true}).catch(function(){});
+      openDetail(rec.id); toast('Kept as a receipt');
+    });
+  });
+};
 function drawDetChips(rec){
   renderChips($('det-chips'),{selected:S.detTags,suggestion:rec.suggestion,
     onToggle:function(c){ S.detTags=toggleTag(S.detTags,c); drawDetChips(rec); updateDetConfirm(rec); }});
@@ -1098,6 +1141,8 @@ function enterApp(user, tok){
         var changed=false;
         if (m.suggestion && rec.suggestion!==m.suggestion){ rec.suggestion=m.suggestion; changed=true; }
         if (m.skipped && !rec.skipped){ rec.skipped=true; changed=true; }
+        if (m.notReceipt && !rec.notReceipt){ rec.notReceipt=true; rec.rejectReason=m.reason||''; changed=true; }
+        if (m.notReceipt===false && rec.notReceipt){ rec.notReceipt=false; changed=true; }  // intake un-flagged it
         if (changed) chain=chain.then(function(){ return dbPut(rec); });
       });
       chain.then(refreshCurrent);
