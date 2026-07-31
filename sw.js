@@ -1,5 +1,5 @@
 /* Receipt Scanner — service worker: offline app shell + Android share target. */
-const VERSION = 'rs-v10';
+const VERSION = 'rs-v11';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {

@@ -917,11 +917,29 @@ function blobToB64(blob){
     r.onerror=rej; r.readAsDataURL(blob);
   });
 }
+// Push a receipt's tag+note to the server (_meta/<Person>-app.json) so they follow the
+// account to every device. If the push fails (offline / blip) the record keeps metaPending
+// and flushMeta retries it — a note must never be stranded on one phone.
 function pushMeta(rec){
-  if (!S.token) return;
-  rpc('apiUpdateMeta',S.token,rec.id,{tags:rec.tags,note:rec.note}).catch(function(){});
+  if (!S.token) return Promise.resolve();
+  var sentNote=rec.note||'', sentTags=rec.tags||null;
+  return rpc('apiUpdateMeta',S.token,rec.id,{tags:rec.tags,note:rec.note}).then(function(){
+    return dbGet(rec.id).then(function(cur){                 // clear the flag only if nothing newer was typed since
+      if (cur && cur.metaPending &&
+          (cur.note||'')===sentNote &&
+          JSON.stringify(cur.tags||null)===JSON.stringify(sentTags)){
+        cur.metaPending=false; return dbPut(cur);
+      }
+    });
+  }).catch(function(){ /* stays metaPending → retried by flushMeta */ });
 }
-window.addEventListener('online',function(){ S.online=true; document.body.classList.remove('offline'); flushQueue(); });
+function flushMeta(){
+  if (!navigator.onLine || !S.token) return;
+  dbAll().then(function(all){
+    all.filter(function(r){ return r.metaPending; }).forEach(function(r){ pushMeta(r); });
+  }).catch(function(){});
+}
+window.addEventListener('online',function(){ S.online=true; document.body.classList.remove('offline'); flushQueue(); flushMeta(); });
 window.addEventListener('offline',function(){ S.online=false; document.body.classList.add('offline'); });
 
 /* ---------- home ---------- */
@@ -1131,7 +1149,7 @@ function updateDetConfirm(rec){
   btn.disabled=!canSave;                 // big button, always visible; dim when nothing to save
   $('det-save-top').disabled=!canSave;   // small top-right Save mirrors it
   var doSave=function(){
-    rec.tags=S.detTags; rec.note=$('det-note').value.trim();
+    rec.tags=S.detTags; rec.note=$('det-note').value.trim(); rec.metaPending=true;
     dbPut(rec).then(function(){ pushMeta(rec); show('receipts'); });
   };
   btn.onclick=doSave; $('det-save-top').onclick=doSave;
@@ -1153,7 +1171,8 @@ $('det-note').addEventListener('blur',function(){
   dbGet(detId).then(function(rec){
     var v=($('det-note').value||'').trim();
     if (v===(rec.note||'')) return;
-    rec.note=v; dbPut(rec).then(function(){ pushMeta(rec); updateDetConfirm(rec); toast('Note saved'); });
+    rec.note=v; rec.metaPending=true;
+    dbPut(rec).then(function(){ pushMeta(rec); updateDetConfirm(rec); toast('Note saved'); });
   });
 });
 // A focused text field means the keyboard is up — hide the floating tab bar until it closes.
@@ -1264,7 +1283,7 @@ function enterApp(user, tok){
   var pre = (prevOwner!==user.person) ? forgetLocalReceipts().catch(function(){}) : Promise.resolve();
   pre.then(function(){ loadServerReceipts(); refreshCurrent(); });
   flushQueue();
-  setInterval(flushQueue, 30000);
+  setInterval(function(){ flushQueue(); flushMeta(); }, 30000);
 }
 
 /**
@@ -1293,19 +1312,28 @@ function loadServerReceipts(){
           return;
         }
         // The server (_meta/<Person>-app.json) is the source of truth for a receipt's tag and
-        // note — so a tag or note set on one device shows up on every device for this account.
-        // These records are all server-known (a not-yet-uploaded local capture isn't in the
-        // list, so it's never clobbered).
+        // note — so a tag or note set on one device shows on every device for this account.
+        // BUT never let the server clobber a local edit this device hasn't managed to push yet
+        // (metaPending): keep the local value and let flushMeta send it. And if this device has
+        // a note the server is missing entirely, treat that as an unsynced edit and recover it.
         var changed=false;
         if (s.suggestion && rec.suggestion!==s.suggestion){ rec.suggestion=s.suggestion; changed=true; }
         if (s.skipped && !rec.skipped){ rec.skipped=true; changed=true; }
         if (s.notReceipt && !rec.notReceipt){ rec.notReceipt=true; rec.rejectReason=s.reason||''; changed=true; }
         if (!s.notReceipt && rec.notReceipt){ rec.notReceipt=false; changed=true; }
-        if (JSON.stringify(s.tags||null)!==JSON.stringify(rec.tags||null)){ rec.tags=s.tags||null; changed=true; }
-        if ((s.note||'')!==(rec.note||'')){ rec.note=s.note||''; changed=true; }
+        if (!rec.metaPending){
+          if (JSON.stringify(s.tags||null)!==JSON.stringify(rec.tags||null)){
+            if ((rec.tags && (!s.tags)) ){ rec.metaPending=true; changed=true; }   // local tag not on server → recover
+            else { rec.tags=s.tags||null; changed=true; }
+          }
+          if ((s.note||'')!==(rec.note||'')){
+            if ((rec.note||'') && !(s.note||'')){ rec.metaPending=true; changed=true; }  // local note not on server → recover
+            else { rec.note=s.note||''; changed=true; }
+          }
+        }
         if (changed) chain=chain.then(function(){ return dbPut(rec); });
       });
-      chain.then(refreshCurrent);
+      chain.then(function(){ refreshCurrent(); flushMeta(); });   // push any notes we just recovered
     });
   }).catch(function(){ /* offline or old backend without listMine — local list still works */ });
 }
