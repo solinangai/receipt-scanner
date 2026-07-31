@@ -222,7 +222,9 @@ textarea{font:inherit;width:100%;resize:none}
 .det-hdr .del{font-size:16px;color:#8E3B22;min-height:44px}
 .det-body{padding:6px 20px 40px;overflow-y:auto}
 .det-photo{width:100%;height:392px;border-radius:14px;box-shadow:0 3px 14px rgba(34,30,26,.08);
-  background:repeating-linear-gradient(45deg,var(--stripe1),var(--stripe1) 10px,var(--stripe2) 10px,var(--stripe2) 20px);background-size:cover;background-position:center}
+  background:repeating-linear-gradient(45deg,var(--stripe1),var(--stripe1) 10px,var(--stripe2) 10px,var(--stripe2) 20px);background-size:cover;background-position:center;position:relative}
+.det-photo.loading::after{content:"Loading photo…";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:13px;color:#6b655c;background:rgba(255,255,255,.82);padding:7px 14px;border-radius:999px;letter-spacing:.02em}
 .det-meta{display:flex;align-items:center;gap:8px;margin:12px 0}
 .det-meta .ts{font-family:ui-monospace,monospace;font-size:12.5px}
 .det-meta .st{font-size:13px;color:var(--body)}
@@ -449,8 +451,8 @@ input[type=file]{display:none}
 /* ---------- server bridge (fetch → Apps Script JSON API; mock for local test) ---------- */
 var API = (window.RECEIPT_API_URL || '').trim();
 var FN_MAP = { apiSignIn:'signIn', apiUpload:'upload', apiUpdateMeta:'updateMeta',
-               apiGetIntakeMeta:'getIntakeMeta', apiListMine:'listMine', apiAddCompany:'addCompany',
-               apiRemoveCompany:'removeCompany', whoami:'whoami' };
+               apiGetIntakeMeta:'getIntakeMeta', apiListMine:'listMine', apiGetPhoto:'getPhoto',
+               apiAddCompany:'addCompany', apiRemoveCompany:'removeCompany', whoami:'whoami' };
 function rpc(fn, token){
   var args = Array.prototype.slice.call(arguments,2);
   if (window.__mockRpc) return window.__mockRpc(fn,[token].concat(args));
@@ -1000,11 +1002,36 @@ function renderSelectBar(){
 
 /* ---------- detail ---------- */
 var detId=null;
+/* base64 (from apiGetPhoto) → Blob we can store and show like a locally-captured photo. */
+function b64ToBlob(b64,mime){
+  var bin=atob(b64), len=bin.length, arr=new Uint8Array(len);
+  for(var i=0;i<len;i++) arr[i]=bin.charCodeAt(i);
+  return new Blob([arr],{type:mime||'image/jpeg'});
+}
+/* Pull the real photo from Drive the first time a synced-elsewhere receipt is opened,
+   then cache it locally so it's instant afterwards. Images only — PDFs keep their mark. */
+function ensurePhoto(rec){
+  if (rec.blob || rec.mime==='application/pdf' || !S.online || !S.token) return;
+  if (rec._loading) return; rec._loading=true;
+  var el=$('det-photo'); el.classList.add('loading');
+  rpc('apiGetPhoto',S.token,rec.id).then(function(r){
+    if (!r||!r.b64) throw new Error('empty');
+    rec.blob=b64ToBlob(r.b64, r.mime||rec.mime); rec.mime=r.mime||rec.mime;
+    delete S.urls[rec.id];
+    return dbPut(rec).then(function(){
+      if (detId===rec.id){ el.style.backgroundImage='url('+(blobUrl(rec)||'')+')'; }
+      updateLastThumb(); if (S.screen==='receipts') renderReceipts();
+    });
+  }).catch(function(){ /* leave placeholder; still viewable in Drive */ })
+    .then(function(){ rec._loading=false; el.classList.remove('loading'); });
+}
+
 function openDetail(id){
   detId=id;
   dbGet(id).then(function(rec){
     show('detail');
     $('det-photo').style.backgroundImage='url('+(blobUrl(rec)||'')+')';
+    ensurePhoto(rec);
     $('det-ts').textContent=fmtTs(rec.capturedAt);
     $('det-badge').className='badge '+(rec.sync==='synced'?'s':'q');
     $('det-badge').textContent=rec.sync==='synced'?'✓':'↑';
