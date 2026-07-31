@@ -221,21 +221,43 @@ body.kbd .det-body{padding-bottom:calc(45vh + 40px)}
 .empty span{font-size:15px;color:#8A7F71}
 
 /* ============ detail ============ */
-.det-hdr{padding:calc(env(safe-area-inset-top) + 12px) 20px 12px;display:flex;justify-content:space-between}
+.det-hdr{padding:calc(env(safe-area-inset-top) + 12px) 20px 12px;display:flex;justify-content:space-between;align-items:center}
 .det-hdr .back{font-size:16px;font-weight:500;color:#A2622F;min-height:44px}
-.det-hdr .del{font-size:16px;color:#8E3B22;min-height:44px}
-.det-body{padding:6px 20px 40px;overflow-y:auto}
-.det-photo{width:100%;height:392px;border-radius:14px;box-shadow:0 3px 14px rgba(34,30,26,.08);
-  background:repeating-linear-gradient(45deg,var(--stripe1),var(--stripe1) 10px,var(--stripe2) 10px,var(--stripe2) 20px);background-size:cover;background-position:center;position:relative}
+.det-hdr .save-top{font-size:16px;font-weight:700;color:#A2622F;min-height:44px;padding:0 4px}
+.det-hdr .save-top[disabled]{opacity:.36}
+/* Delete lives at the bottom, small and quiet, so it's hard to hit by accident */
+.det-del-link{display:block;width:100%;text-align:center;background:transparent;color:#B26551;
+  font-size:12.5px;letter-spacing:.02em;min-height:36px;margin-top:12px}
+/* confirm-before-delete bottom sheet */
+.csheet{display:none;position:fixed;inset:0;background:rgba(20,18,16,.45);z-index:110;align-items:flex-end}
+.csheet.show{display:flex}
+.csheet-card{width:100%;background:var(--card);border-radius:20px 20px 0 0;
+  padding:22px 20px calc(env(safe-area-inset-bottom) + 20px);box-shadow:0 -6px 24px rgba(0,0,0,.18)}
+.csheet-title{font-size:18px;font-weight:600;color:var(--ink);margin-bottom:6px}
+.csheet-msg{font-size:14px;color:var(--body);line-height:1.45;margin-bottom:18px}
+.csheet-danger{width:100%;min-height:54px;border-radius:14px;background:#CE3B2E;color:#fff;font-size:17px;font-weight:600}
+.csheet-cancel{width:100%;min-height:50px;border-radius:14px;background:transparent;color:var(--body);font-size:16px;margin-top:8px}
+.det-body{padding:6px 20px 16px;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
+/* 16:9 landscape preview — cover-cropped; tap to zoom to the full receipt */
+.det-photo{width:100%;aspect-ratio:16/9;border-radius:14px;box-shadow:0 3px 14px rgba(34,30,26,.08);
+  background:repeating-linear-gradient(45deg,var(--stripe1),var(--stripe1) 10px,var(--stripe2) 10px,var(--stripe2) 20px);background-size:cover;background-position:center;position:relative;cursor:zoom-in;flex:none}
+.det-photo::before{content:"Tap to zoom";position:absolute;right:9px;bottom:8px;font-size:10.5px;letter-spacing:.04em;
+  color:#4b453d;background:rgba(255,255,255,.82);padding:3px 9px;border-radius:999px}
 .det-photo.loading::after{content:"Loading photo…";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   font-size:13px;color:#6b655c;background:rgba(255,255,255,.82);padding:7px 14px;border-radius:999px;letter-spacing:.02em}
-.det-meta{display:flex;align-items:center;gap:8px;margin:12px 0}
+.det-meta{display:flex;align-items:center;gap:8px;margin:10px 0 2px}
 .det-meta .ts{font-family:ui-monospace,monospace;font-size:12.5px}
 .det-meta .st{font-size:13px;color:var(--body)}
-.lbl-mono{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:var(--meta);text-transform:uppercase;margin:14px 0 8px}
-.note-light{border-radius:13px;border:1px solid rgba(34,30,26,.18);background:#FFFDF8;font-size:15.5px;padding:11px 13px;color:var(--ink)}
-.det-confirm{width:100%;min-height:58px;border-radius:14px;background:var(--ink);color:var(--onprimary);font-size:17px;font-weight:600;margin-top:16px;display:none}
-.det-confirm.show{display:block}
+.lbl-mono{font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.12em;color:var(--meta);text-transform:uppercase;margin:12px 0 7px}
+.note-light{border-radius:13px;border:1px solid rgba(34,30,26,.18);background:#FFFDF8;font-size:15.5px;padding:10px 13px;color:var(--ink)}
+.det-confirm{width:100%;min-height:52px;border-radius:14px;background:var(--ink);color:var(--onprimary);font-size:17px;font-weight:600;margin-top:auto;display:block}
+.det-confirm[disabled]{opacity:.4}
+/* full-screen zoom */
+.lightbox{display:none;position:fixed;inset:0;background:rgba(20,18,16,.94);z-index:100;
+  align-items:center;justify-content:center;padding:16px;cursor:zoom-out}
+.lightbox.show{display:flex}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px}
+.lightbox .lb-close{position:absolute;top:calc(env(safe-area-inset-top) + 12px);right:18px;color:#fff;font-size:30px;line-height:1;font-weight:300}
 
 /* ============ settings ============ */
 .set-body{padding:6px 20px 140px;overflow-y:auto;flex:1}
@@ -365,7 +387,7 @@ input[type=file]{display:none}
 <div class="screen" id="scr-detail">
   <div class="det-hdr">
     <button class="back" id="det-back">Back</button>
-    <button class="del" id="det-del">Delete</button>
+    <button class="save-top" id="det-save-top">Save</button>
   </div>
   <div class="det-body">
     <div class="det-reject" id="det-reject" style="display:none">
@@ -385,10 +407,24 @@ input[type=file]{display:none}
     <div class="lbl-mono">Tag</div>
     <div class="chips" id="det-chips"></div>
     <div class="lbl-mono">Note</div>
-    <textarea rows="3" class="note-light" id="det-note" placeholder="What was this for?"></textarea>
-    <button class="det-confirm" id="det-confirm"></button>
+    <textarea rows="2" class="note-light" id="det-note" placeholder="What was this for?"></textarea>
+    <button class="det-confirm" id="det-confirm">Save</button>
+    <button class="det-del-link" id="det-del">Delete this receipt</button>
   </div>
   <div class="tabbar" data-tabbar></div>
+</div>
+
+<!-- ZOOM (full receipt) -->
+<div class="lightbox" id="lightbox"><span class="lb-close">&times;</span><img id="lightbox-img" alt="receipt"></div>
+
+<!-- confirm before deleting -->
+<div class="csheet" id="del-sheet">
+  <div class="csheet-card">
+    <div class="csheet-title">Delete this receipt?</div>
+    <div class="csheet-msg">It’ll be removed from your phone. The stored copy stays safe in Drive.</div>
+    <button class="csheet-danger" id="del-confirm">Delete</button>
+    <button class="csheet-cancel" id="del-cancel">Cancel</button>
+  </div>
 </div>
 
 <!-- SETTINGS -->
@@ -490,6 +526,16 @@ function dbGet(id){ return idb().then(function(db){ return new Promise(function(
 function dbDel(id){ return idb().then(function(db){ return new Promise(function(res,rej){
   var tx = db.transaction('r','readwrite'); tx.objectStore('r').delete(id);
   tx.oncomplete=res; tx.onerror=function(){rej(tx.error);};});});}
+/* Wipe this device's cached receipts. Used when a different account signs in or on sign-out,
+   so one person's receipts never linger on a device now used by someone else. */
+function dbClear(){ return idb().then(function(db){ return new Promise(function(res,rej){
+  var tx = db.transaction('r','readwrite'); tx.objectStore('r').clear();
+  tx.oncomplete=res; tx.onerror=function(){rej(tx.error);};});});}
+function forgetLocalReceipts(){
+  Object.keys(S.urls||{}).forEach(function(k){ try{URL.revokeObjectURL(S.urls[k]);}catch(e){} });
+  S.urls={};
+  return dbClear();
+}
 
 /* ---------- state ---------- */
 var S = {
@@ -1078,14 +1124,27 @@ function updateDetConfirm(rec){
   var tagChanged = JSON.stringify(S.detTags||null)!==JSON.stringify(rec.tags||null);
   var noteChanged = ($('det-note').value||'')!==(rec.note||'');
   var btn=$('det-confirm');
+  var canSave=(tagChanged&&S.detTags)||noteChanged;
   if (tagChanged&&S.detTags) btn.textContent='Save to '+tagLabel(S.detTags);
   else if (noteChanged) btn.textContent='Save note';
-  btn.classList.toggle('show',(tagChanged&&S.detTags)||noteChanged);
-  btn.onclick=function(){
+  else btn.textContent='Save';
+  btn.disabled=!canSave;                 // big button, always visible; dim when nothing to save
+  $('det-save-top').disabled=!canSave;   // small top-right Save mirrors it
+  var doSave=function(){
     rec.tags=S.detTags; rec.note=$('det-note').value.trim();
     dbPut(rec).then(function(){ pushMeta(rec); show('receipts'); });
   };
+  btn.onclick=doSave; $('det-save-top').onclick=doSave;
 }
+/* Tap the 16:9 preview → full receipt, tap anywhere to close. */
+$('det-photo').onclick=function(){
+  if (!detId) return;
+  dbGet(detId).then(function(rec){
+    var url=blobUrl(rec); if (!url) return;
+    $('lightbox-img').src=url; $('lightbox').classList.add('show');
+  });
+};
+$('lightbox').onclick=function(){ this.classList.remove('show'); $('lightbox-img').src=''; };
 $('det-note').addEventListener('input',function(){ dbGet(detId).then(updateDetConfirm); });
 // Save the note when the keyboard is dismissed, so it persists even if the Save button
 // sits below the keyboard. Keeps you on the receipt (unlike the tag Save, which navigates).
@@ -1105,12 +1164,18 @@ document.addEventListener('focusout',function(e){
   var t=e.target; if (t && (t.tagName==='TEXTAREA'||t.tagName==='INPUT')) document.body.classList.remove('kbd');
 });
 $('det-back').onclick=function(){ show('receipts'); };
-$('det-del').onclick=function(){
+// Delete is a two-step action: tap the small link → confirm in the sheet. Guards against
+// deleting an invoice by accident.
+$('det-del').onclick=function(){ $('del-sheet').classList.add('show'); };
+$('del-cancel').onclick=function(){ $('del-sheet').classList.remove('show'); };
+$('del-sheet').onclick=function(e){ if (e.target===this) this.classList.remove('show'); };  // tap backdrop = cancel
+$('del-confirm').onclick=function(){
+  $('del-sheet').classList.remove('show');
   dbGet(detId).then(function(rec){
     rec.skipped=true;                 // local removal + skip marker; Drive is never touched
     dbPut(rec).then(function(){
       if (S.token) rpc('apiUpdateMeta',S.token,rec.id,{skipped:true}).catch(function(){});
-      show('receipts'); toast('Removed on this phone');
+      show('receipts'); toast('Receipt deleted from your phone');
     });
   });
 };
@@ -1147,7 +1212,8 @@ document.querySelectorAll('.aa-row button').forEach(function(b){
   b.onclick=function(){ applyScale(b.dataset.scale); };
 });
 $('btn-signout').onclick=function(){
-  localStorage.removeItem('token'); localStorage.removeItem('user');
+  forgetLocalReceipts().catch(function(){});          // don't leave receipts on a shared device
+  localStorage.removeItem('token'); localStorage.removeItem('user'); localStorage.removeItem('dataOwner');
   S.user=null; S.token=null;
   $('in-email').value=localStorage.getItem('email')||'';
   $('noallow').style.display='none';
@@ -1189,7 +1255,12 @@ function enterApp(user, tok){
   localStorage.setItem('token',tok);
   localStorage.setItem('user',JSON.stringify(user));
   applyTheme(); show('home');
-  loadServerReceipts();
+  // If a different account was last used on this device, wipe their cached receipts first —
+  // a receipt only ever shows on devices signed in as the account that uploaded it.
+  var prevOwner=localStorage.getItem('dataOwner');
+  localStorage.setItem('dataOwner', user.person);
+  var pre = (prevOwner && prevOwner!==user.person) ? forgetLocalReceipts().catch(function(){}) : Promise.resolve();
+  pre.then(function(){ loadServerReceipts(); refreshCurrent(); });
   flushQueue();
   setInterval(flushQueue, 30000);
 }
