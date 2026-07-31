@@ -1306,7 +1306,13 @@ function loadServerReceipts(){
   var v=localStorage.getItem('textScale'); if (v) applyScale(v);
   if (!S.online) document.body.classList.add('offline');
   if ('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(function(){});
+    navigator.serviceWorker.register('sw.js').then(function(reg){ try{reg.update();}catch(e){} }).catch(function(){});
+    // When a freshly-installed service worker takes control, reload once so the new build
+    // shows immediately instead of on a later launch.
+    var reloading=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){
+      if (reloading) return; reloading=true; location.reload();
+    });
   }
   var qs=new URLSearchParams(location.search);
   var fromUrl=qs.get('t');
