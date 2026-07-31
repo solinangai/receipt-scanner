@@ -89,6 +89,10 @@ textarea{font:inherit;width:100%;resize:none}
 .tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;padding:8px 14px 26px;border-top:1px solid var(--hairline);
   background:var(--card);z-index:30}
 .theme-member .tabbar{background:#FFFAEE}
+/* While typing, iOS floats a fixed bottom bar above the keyboard, mid-screen. Hide it so it
+   stays out of the way, and give the scroll area room to bring the field + Save button up. */
+body.kbd .tabbar{display:none}
+body.kbd .det-body{padding-bottom:calc(45vh + 40px)}
 .tab{flex:1;min-height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
   font-size:12px;color:var(--meta)}
 .theme-member .tab{color:#8A6136}
@@ -180,7 +184,7 @@ textarea{font:inherit;width:100%;resize:none}
 @keyframes flash{from{opacity:.85}to{opacity:0}}
 
 /* ============ receipts list ============ */
-.hdr{padding:60px 20px 14px;display:flex;justify-content:space-between;align-items:flex-end}
+.hdr{padding:calc(env(safe-area-inset-top) + 16px) 20px 14px;display:flex;justify-content:space-between;align-items:flex-end}
 .hdr h1{font-size:26px;font-weight:600}
 .hdr .sub{font-size:14px;color:#8A7F71;margin-top:3px}
 .btn-select{min-height:44px;border-radius:11px;padding:0 14px;font-size:14.5px;font-weight:500;border:1px solid rgba(34,30,26,.2)}
@@ -217,7 +221,7 @@ textarea{font:inherit;width:100%;resize:none}
 .empty span{font-size:15px;color:#8A7F71}
 
 /* ============ detail ============ */
-.det-hdr{padding:60px 20px 12px;display:flex;justify-content:space-between}
+.det-hdr{padding:calc(env(safe-area-inset-top) + 12px) 20px 12px;display:flex;justify-content:space-between}
 .det-hdr .back{font-size:16px;font-weight:500;color:#A2622F;min-height:44px}
 .det-hdr .del{font-size:16px;color:#8E3B22;min-height:44px}
 .det-body{padding:6px 20px 40px;overflow-y:auto}
@@ -1083,6 +1087,23 @@ function updateDetConfirm(rec){
   };
 }
 $('det-note').addEventListener('input',function(){ dbGet(detId).then(updateDetConfirm); });
+// Save the note when the keyboard is dismissed, so it persists even if the Save button
+// sits below the keyboard. Keeps you on the receipt (unlike the tag Save, which navigates).
+$('det-note').addEventListener('blur',function(){
+  if (!detId) return;
+  dbGet(detId).then(function(rec){
+    var v=($('det-note').value||'').trim();
+    if (v===(rec.note||'')) return;
+    rec.note=v; dbPut(rec).then(function(){ pushMeta(rec); updateDetConfirm(rec); toast('Note saved'); });
+  });
+});
+// A focused text field means the keyboard is up — hide the floating tab bar until it closes.
+document.addEventListener('focusin',function(e){
+  var t=e.target; if (t && (t.tagName==='TEXTAREA'||t.tagName==='INPUT')) document.body.classList.add('kbd');
+});
+document.addEventListener('focusout',function(e){
+  var t=e.target; if (t && (t.tagName==='TEXTAREA'||t.tagName==='INPUT')) document.body.classList.remove('kbd');
+});
 $('det-back').onclick=function(){ show('receipts'); };
 $('det-del').onclick=function(){
   dbGet(detId).then(function(rec){
