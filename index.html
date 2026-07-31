@@ -1255,11 +1255,13 @@ function enterApp(user, tok){
   localStorage.setItem('token',tok);
   localStorage.setItem('user',JSON.stringify(user));
   applyTheme(); show('home');
-  // If a different account was last used on this device, wipe their cached receipts first —
-  // a receipt only ever shows on devices signed in as the account that uploaded it.
+  // A receipt only ever shows on devices signed in as the account that uploaded it. Wipe the
+  // local cache when a different account signs in — OR when we can't prove the cached data
+  // belongs to this account (no owner recorded yet, e.g. a device upgrading from a build that
+  // predates this rule). The correct receipts are re-pulled from the server right after.
   var prevOwner=localStorage.getItem('dataOwner');
   localStorage.setItem('dataOwner', user.person);
-  var pre = (prevOwner && prevOwner!==user.person) ? forgetLocalReceipts().catch(function(){}) : Promise.resolve();
+  var pre = (prevOwner!==user.person) ? forgetLocalReceipts().catch(function(){}) : Promise.resolve();
   pre.then(function(){ loadServerReceipts(); refreshCurrent(); });
   flushQueue();
   setInterval(flushQueue, 30000);
@@ -1290,12 +1292,17 @@ function loadServerReceipts(){
           chain=chain.then(function(){ return dbPut(rec); });
           return;
         }
+        // The server (_meta/<Person>-app.json) is the source of truth for a receipt's tag and
+        // note — so a tag or note set on one device shows up on every device for this account.
+        // These records are all server-known (a not-yet-uploaded local capture isn't in the
+        // list, so it's never clobbered).
         var changed=false;
         if (s.suggestion && rec.suggestion!==s.suggestion){ rec.suggestion=s.suggestion; changed=true; }
         if (s.skipped && !rec.skipped){ rec.skipped=true; changed=true; }
         if (s.notReceipt && !rec.notReceipt){ rec.notReceipt=true; rec.rejectReason=s.reason||''; changed=true; }
         if (!s.notReceipt && rec.notReceipt){ rec.notReceipt=false; changed=true; }
-        if (s.tags && JSON.stringify(s.tags)!==JSON.stringify(rec.tags||null)){ rec.tags=s.tags; changed=true; }
+        if (JSON.stringify(s.tags||null)!==JSON.stringify(rec.tags||null)){ rec.tags=s.tags||null; changed=true; }
+        if ((s.note||'')!==(rec.note||'')){ rec.note=s.note||''; changed=true; }
         if (changed) chain=chain.then(function(){ return dbPut(rec); });
       });
       chain.then(refreshCurrent);
