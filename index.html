@@ -1342,12 +1342,15 @@ function loadServerReceipts(){
   if (!S.online) document.body.classList.add('offline');
   if ('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(function(reg){ try{reg.update();}catch(e){} }).catch(function(){});
-    // When a freshly-installed service worker takes control, reload once so the new build
-    // shows immediately instead of on a later launch.
-    var reloading=false;
-    navigator.serviceWorker.addEventListener('controllerchange',function(){
-      if (reloading) return; reloading=true; location.reload();
-    });
+    // If the page is already controlled by a SW, a controllerchange means a NEW build just took
+    // over → reload once so it shows immediately. Guarded so a first-ever install (no prior
+    // controller) doesn't trigger a spurious reload.
+    if (navigator.serviceWorker.controller){
+      var reloading=false;
+      navigator.serviceWorker.addEventListener('controllerchange',function(){
+        if (reloading) return; reloading=true; location.reload();
+      });
+    }
   }
   var qs=new URLSearchParams(location.search);
   var fromUrl=qs.get('t');

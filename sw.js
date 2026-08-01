@@ -1,5 +1,5 @@
 /* Receipt Scanner — service worker: offline app shell + Android share target. */
-const VERSION = 'rs-v11';
+const VERSION = 'rs-v12';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -38,22 +38,10 @@ self.addEventListener('fetch', (e) => {
   // Never intercept the API (POST) — only same-origin GETs for the shell.
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
 
-  // HTML navigations: NETWORK-FIRST so a new deploy shows up on the very next open
-  // (fall back to the cached shell when offline). Cache-first here was why an update
-  // only appeared on the second reopen.
-  const isNav = e.request.mode === 'navigate' ||
-    url.pathname === '/' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
-  if (isNav) {
-    e.respondWith(
-      fetch(e.request).then((res) => {
-        if (res.ok) caches.open(VERSION).then((c) => c.put('index.html', res.clone()));
-        return res;
-      }).catch(() => caches.match('index.html', { ignoreSearch: true }).then((h) => h || caches.match('./')))
-    );
-    return;
-  }
-
-  // Everything else (icons, config, manifest): cache-first, revalidate in the background.
+  // CACHE-FIRST for instant paint (no blank screen on a cold start), then revalidate in the
+  // background. Freshness after a deploy is handled by the version bump: the new SW installs,
+  // fetches the new shell into its cache, activates (skipWaiting + clients.claim), and the app's
+  // `controllerchange` listener reloads once — so the new build shows without a slow network wait.
   e.respondWith(
     caches.match(e.request, { ignoreSearch: true }).then((hit) => {
       const net = fetch(e.request).then((res) => {
